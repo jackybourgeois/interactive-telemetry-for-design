@@ -1,0 +1,15 @@
+{
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnknownMemberType": "none",
+        "reportUnknownArgumentType": "none",
+        "reportUnknownVariableType": "warning",
+        "reportMissingParameterType": "warning",
+        "reportUnknownParameterType": "warning",
+        "reportUnknownLambdaType": "warning",
+        "reportMissingTypeStubs": "information"
+    },
+    "autoDocstring.docstringFormat": "sphinx-notypes",
+    "autoDocstring.quoteStyle": "'''"
+}
