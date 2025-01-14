@@ -5,3 +5,4 @@ ipykernel==6.29.5
 tensorflow[and-cuda]==2.18.0; sys_platform == "linux"
 tensorflow-cpu==2.18.0; sys_platform == "win32"
 matplotlib==3.10.0
+telemetry-parser==0.3.0
