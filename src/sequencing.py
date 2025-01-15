@@ -1,47 +1,38 @@
-from pathlib import Path
 from config import config
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
-def create_sequence(metadata_csv_path: Path, overlap: float, length: int) -> list[tf.Tensor]:
+def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> list[tf.Tensor]:
     """
     Create a sequence of tensors from the input CSV based on time partitions.
 
     Args:
-        metadata_csv_path: Path to the metadata CSV file.
+        df: dataframe containing acc en gyro data.
         overlap: Fraction of overlap between partitions (0 <= overlap <= 1).
         length: Length of each sequence in seconds.
 
     Returns:
         A list of tensors containing the partitioned sequences.
     """
-    length_microsec = length * 1000000
     overlap = 1-overlap
-    df = pd.read_csv(config.DATA_DIR / 'CSVs' / 'GH010038-ACC&GYRO.csv', skiprows=1)
     if not 0 <= overlap <= 1:
         raise ValueError('Overlap must be between 0 and 1')
-    
-    # 
-    # Call CSV Preprocessing if necessairy
-    #
 
     tensors = []
 
-    min_time = df['time'].min()
-    max_time = df['time'].max()
+    max_time = df['TIMESTAMP'].max()
     start = 0
 
     # Partitioning the dataframe
     while start <= max_time:
-        end = start + length_microsec
-        partition = df[(df['time'] >= start) & (df['time'] < end)].iloc[:, 2:]
+        end = start + length
+        partition = df[(df['TIMESTAMP'] >= start) & (df['TIMESTAMP'] < end)].iloc[:, 1:]
         tensors.append(tf.convert_to_tensor(partition, dtype=tf.float32))
-        if start + length_microsec > max_time:
+        if start + length > max_time:
             break
-        start += length_microsec*overlap
-
+        start += length*overlap
 
     return pad_sequences(tensors,padding='post',dtype='float32')
 
@@ -63,7 +54,7 @@ def create_empty_tensor_list(sequence_list: list[tf.Tensor], num_actions: int) -
     
     return label_list
 
-def get_sequences_and_labels(metadata_csv_path: Path, overlap: float, length: int, num_actions: int) -> tuple[list[tf.Tensor], list[tf.Tensor]]:
+def get_sequences_and_labels(df: pd.DataFrame, overlap: float, length: int, num_actions: int) -> tuple[list[tf.Tensor], list[tf.Tensor]]:
     """
     Generate sequences and corresponding labels based on the input data.
 
@@ -76,7 +67,7 @@ def get_sequences_and_labels(metadata_csv_path: Path, overlap: float, length: in
     Returns:
         A tuple of sequences (list of tensors) and labels (list of tensors).
     """
-    sequences = create_sequence(metadata_csv_path, overlap, length)
+    sequences = create_sequence(df, overlap, length)
     labels = create_empty_tensor_list(sequences, num_actions)
     return sequences, labels
     
