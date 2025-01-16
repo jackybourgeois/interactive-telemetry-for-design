@@ -66,20 +66,22 @@ def train_model(
     model,
     X_train,
     y_train,
+    X_val=None,
+    y_val=None,
     sample_weight=None,
     batch_size=16,
     epochs=10,
     gpu_device="/GPU:0"
 ):
     """
-    Trains a given model using the specified training and validation data on a GPU.
+    Trains a given model using the specified training data on a GPU.
 
     Args:
         model (tf.keras.Model): The compiled Keras model to train.
         X_train (numpy.ndarray): Training input data (e.g., sequences).
         y_train (numpy.ndarray): Training target data (e.g., labels).
-        X_val (numpy.ndarray): Validation input data (e.g., sequences).
-        y_val (numpy.ndarray): Validation target data (e.g., labels).
+        X_val (numpy.ndarray, optional): Validation input data (e.g., sequences). Default is None.
+        y_val (numpy.ndarray, optional): Validation target data (e.g., labels). Default is None.
         sample_weight (numpy.ndarray, optional): Array of weights for each sample, 
             to mask certain timesteps or emphasize specific samples. Default is None.
         batch_size (int, optional): Number of samples per gradient update. Default is 16.
@@ -89,15 +91,26 @@ def train_model(
     Returns:
         tf.keras.callbacks.History: The training history object containing metrics and loss values.
     """
-
     with tf.device(gpu_device):
-        history = model.fit(
-            X_train,
-            y_train,
-            sample_weight=sample_weight,
-            batch_size=batch_size,
-            epochs=epochs
-        )
+        if X_val is not None and y_val is not None:
+            history = model.fit(
+                X_train,
+                y_train,
+                validation_data=(X_val, y_val),
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                epochs=epochs
+            )
+        else:
+            history = model.fit(
+                X_train,
+                y_train,
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                epochs=epochs
+            )
+    
     return history
+
 
     

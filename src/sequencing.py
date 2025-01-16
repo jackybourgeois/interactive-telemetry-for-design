@@ -1,12 +1,11 @@
-from config import config
+import numpy as np
 import pandas as pd
-import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
-def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> list[tf.Tensor]:
+def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> list[np.ndarray]:
     """
-    Create a sequence of tensors from the input CSV based on time partitions.
+    Returns the dataframe splitted into sequences contianing only the datarows, not frameindex, time and label
 
     Args:
         df: dataframe containing acc en gyro data.
@@ -28,15 +27,46 @@ def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> list[tf.Te
     # Partitioning the dataframe
     while start <= max_time:
         end = start + length
-        partition = df[(df['TIMESTAMP'] >= start) & (df['TIMESTAMP'] < end)].iloc[:, 1:]
-        tensors.append(tf.convert_to_tensor(partition, dtype=tf.float32))
+        partition = df[(df['TIMESTAMP'] >= start) & (df['TIMESTAMP'] < end)].iloc[:, 1:].to_numpy()
+        tensors.append(partition)
         if start + length > max_time:
             break
         start += length*overlap
 
     return pad_sequences(tensors,padding='post',dtype='float32')
 
-def create_empty_tensor_list(sequence_list: list[tf.Tensor], num_actions: int) -> list[tf.Tensor]:
+def get_sequences_pure_data(sequence_list: list[np.ndarray]) -> np.ndarray:
+    """
+    Extracts only the first six columns from each 2D ndarray in the sequence list.
+    Args:
+        sequence_list: List of 2D ndarrays.
+    Returns:
+        A 3D ndarray containing the first six columns of each sequence.
+    """
+    pure_data_list = [sequence[:, :6] for sequence in sequence_list]
+
+    return np.stack(pure_data_list, axis=0)
+
+
+
+def get_pure_labels(sequence_list: list[np.ndarray]) -> np.ndarray:
+    """
+    Extracts only the last column from each 2D ndarray in the sequence list.
+
+    Args:
+        sequence_list: List of 2D ndarrays.
+
+    Returns:
+        A 3D ndarray containing the last column of each sequence.
+    """
+    # Extract last column of each sequence
+    labels_list = [sequence[:, -1] for sequence in sequence_list]
+
+    # Stack them into a single 3D array (or 2D if no sequences)
+    return np.stack(labels_list, axis=0)
+
+
+def create_empty_tensor_list(sequence: np.ndarray, num_actions: int) -> np.ndarray:
     """
     Create a list of empty tensors with a given shape for labels.
 
@@ -47,27 +77,43 @@ def create_empty_tensor_list(sequence_list: list[tf.Tensor], num_actions: int) -
     Returns:
         A list of label tensors with the same length as the sequence list.
     """
-    num_tensors = len(sequence_list)
-    num_data_points = len(sequence_list[0])
+    num_tensors = len(sequence)
+    num_data_points = len(sequence[0])
     
-    label_list = [tf.zeros((num_data_points, num_actions), dtype=tf.int32) for _ in range(num_tensors)]
+    label_list = np.zeros((num_tensors, num_data_points, num_actions), dtype=np.int32)
     
     return label_list
 
-def get_sequences_and_labels(df: pd.DataFrame, overlap: float, length: int, num_actions: int) -> tuple[list[tf.Tensor], list[tf.Tensor]]:
+
+def get_filtered_sequences_and_labels(sequence_list: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
     """
-    Generate sequences and corresponding labels based on the input data.
+    Filters the sequences based on the conditions:
+    1. If the last column of a sequence contains only NaNs, delete that sequence.
+    2. If a sequence has integers (non-NaN values) in the last column, remove all rows with NaNs in the last column but keep rows with integers.
 
     Args:
-        metadata_csv_path: Path to the metadata CSV file.
-        overlap: Fraction of overlap between partitions (0 <= overlap <= 1).
-        length: Length of each sequence in seconds.
-        num_actions: Number of actions (columns) in the label tensors.
+        sequence_list: List of 2D ndarrays.
 
     Returns:
-        A tuple of sequences (list of tensors) and labels (list of tensors).
+        A list of filtered sequences.
     """
-    sequences = create_sequence(df, overlap, length)
-    labels = create_empty_tensor_list(sequences, num_actions)
-    return sequences, labels
+    tensor_length = len(sequence_list[0])
+    filtered_sequences = []
+
+    for sequence in sequence_list:
+        last_column = sequence[:, -1]
+        
+        # Case 1: If the last column contains only NaNs, skip this sequence
+        if np.all(np.isnan(last_column)):
+            continue
+        
+        # Case 2: If the last column contains integers and NaNs, remove rows with NaNs in the last column
+        valid_rows = ~np.isnan(last_column)  # Boolean mask for non-NaN values
+        filtered_sequence = sequence[valid_rows]  # Keep only the valid rows (non-NaN in the last column)
+        
+        filtered_sequences.append(filtered_sequence)
+
+    padded = pad_sequences(filtered_sequences,maxlen=tensor_length,padding='post',dtype='float32')
+    return get_sequences_pure_data(padded), get_pure_labels(padded)
+
     
