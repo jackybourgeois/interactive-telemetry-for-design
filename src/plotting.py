@@ -47,10 +47,10 @@ def plot_data_with_categorical_labels(
     labels: pd.Series, 
     col_x: str, 
     col_y: str, 
-    label_mapping: dict[int, str] = None
+    label_mapping: dict[int, str] = None, 
 ):
     """
-    Plot data points from two columns of a DataFrame using Matplotlib, 
+    Plot a stratified sampled subset of data points from two columns of a DataFrame using Matplotlib, 
     with point colors based on numeric categorical labels. Includes a legend.
 
     Parameters:
@@ -63,8 +63,26 @@ def plot_data_with_categorical_labels(
     Returns:
         None: The function displays the plot.
     """
+    sample_fraction = 1.0
+    # We set no random state to keep results truly random
+
+    # Ensure sampling fraction is valid
+    if not (0 < sample_fraction <= 1):
+        raise ValueError("sample_fraction must be between 0 and 1.")
+
+    # Combine the DataFrame and labels for consistent sampling
+    combined = df.copy()
+    combined['LABEL'] = labels
+
+    # Perform stratified sampling
+    stratified_sample = combined.groupby('LABEL', group_keys=False).apply(
+        lambda x: x.sample(frac=sample_fraction)
+    )
+    sampled_labels = stratified_sample['LABEL']
+    sampled = stratified_sample.drop(columns=['LABEL'])
+
     # Assign unique colors to each label
-    unique_labels = labels.unique()
+    unique_labels = sampled_labels.unique()
     colors = plt.cm.get_cmap('tab10', len(unique_labels))  # Generate a colormap for labels
     color_map = {label: colors(i) for i, label in enumerate(unique_labels)}
 
@@ -72,7 +90,7 @@ def plot_data_with_categorical_labels(
 
     # Scatter plot each class with its own color
     for label in unique_labels:
-        subset = df[labels == label]
+        subset = sampled[sampled_labels == label]
         label_name = label_mapping[label] if label_mapping else f'Label {label}'
         plt.scatter(
             subset[col_x], subset[col_y], 
@@ -82,7 +100,7 @@ def plot_data_with_categorical_labels(
             edgecolors='k'
         )
 
-    plt.title(f'Plot of {col_x} against {col_y}')
+    plt.title(f'Plot of {col_x} against {col_y} (Stratified {sample_fraction * 100:.0f}%)')
     plt.xlabel(col_x)
     plt.ylabel(col_y)
     plt.legend(title="Classes")
@@ -90,10 +108,11 @@ def plot_data_with_categorical_labels(
     plt.show()
 
 
+
 # Voorbeeld van gebruik, vrij grimmig
 
 # df = pd.read_csv('C:\projects\interactive-telemetry-for-design\data\CSVs\GoPro_test.csv')
 # principal_df, labels, label_mapping = calculate_PCs_and_magnitudes(df)
 
-# plot_data_with_categorical_labels(principal_df, labels, col_x='ACCL', col_y='PC_1', label_mapping={v: k for k, v in label_mapping.items()})
+# plot_data_with_categorical_labels(principal_df, labels, col_x='ACCL', col_y='GYRO', label_mapping={v: k for k, v in label_mapping.items()})
 
