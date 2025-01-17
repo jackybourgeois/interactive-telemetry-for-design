@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload and Advanced Settings</title>
+</head>
+<body>
+    <h1>Horizontal rotierende fisch</h1>
+
+    <!-- MP4 File Upload -->
+    <div class="file-upload">
+        <label for="mp4-upload">Upload GoPro Video:</label>
+        <input type="file" id="mp4-upload" accept=".mp4">
+    </div>
+
+    <!-- Model File Upload -->
+    <div class="file-upload">
+        <label for="model-upload">Upload Saved Model:</label>
+        <input type="file" id="pt-upload" accept=".pt">
+    </div>
+
+    <!-- Checkbox to Show/Hide CSV File Upload -->
+    <div>
+        <input type="checkbox" id="toggle-CSV-upload" onchange="toggleCSVUpload()">
+        <label for="toggle-CSV-upload">Upload IMU and Video Seperatly</label>
+    </div>
+
+    <!-- CSV File Upload -->
+    <div id="CSV-upload-container" style="display: none;">
+        <label for="CSV-upload">Upload IMU data:</label>
+        <input type="file" id="CSV-upload" accept=".csv">
+    </div>
+
+    <!-- Advanced Settings -->
+    <div>
+        <button id="advanced-settings-btn" onclick="showPopup()">Advanced Settings</button>
+        <div id="settings-fields" style="display: none;">
+            <label for="a1">Field A1:</label>
+            <input type="number" id="a1" value="3"><br>
+            <label for="a2">Field A2:</label>
+            <input type="number" id="a2" value="3"><br>
+            <label for="a3">Field A3:</label>
+            <input type="number" id="a3" value="3"><br>
+            <label for="a4">Field A4:</label>
+            <input type="number" id="a4" value="3"><br>
+            <label for="a5">Field A5:</label>
+            <input type="number" id="a5" value="3"><br>
+            <button onclick="retractSettings()">Retract Settings</button>
+        </div>
+    </div>
+
+    <!-- Popup -->
+    <div id="popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid black; padding: 20px; z-index: 1000;">
+        <p>WARNING: These settings have been tuned using validation datasets, changing the settings might result in a less effective model.</p>
+        <button onclick="confirmPopup()">Confirm</button>
+    </div>
+
+    <!-- Overlay to dim the background -->
+    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+
+    <script>
+        function toggleCSVUpload() {
+            const CSVUploadContainer = document.getElementById('CSV-upload-container');
+            CSVUploadContainer.style.display = CSVUploadContainer.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function showPopup() {
+            document.getElementById('popup').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function confirmPopup() {
+            document.getElementById('popup').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('advanced-settings-btn').style.display = 'none';
+            document.getElementById('settings-fields').style.display = 'block';
+        }
+
+        function retractSettings() {
+            document.getElementById('settings-fields').style.display = 'none';
+            document.getElementById('advanced-settings-btn').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
