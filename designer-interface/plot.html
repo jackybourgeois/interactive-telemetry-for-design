@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Data Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        select {
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+        #plot {
+            width: 100%;
+            height: 600px;
+        }
+        #selectedPoint {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <label for="xAxis">X-Axis:</label>
+            <select id="xAxis">
+                <option value="PC_1">PC_1</option>
+                <option value="PC_2">PC_2</option>
+                <option value="PC_3">PC_3</option>
+                <option value="PC_4">PC_4</option>
+                <option value="PC_5">PC_5</option>
+                <option value="PC_6">PC_6</option>
+                <option value="ACCL">ACCL</option>
+                <option value="GYRO">GYRO</option>
+            </select>
+
+            <label for="yAxis">Y-Axis:</label>
+            <select id="yAxis">
+                <option value="PC_1">PC_1</option>
+                <option value="PC_2" selected>PC_2</option>
+                <option value="PC_3">PC_3</option>
+                <option value="PC_4">PC_4</option>
+                <option value="PC_5">PC_5</option>
+                <option value="PC_6">PC_6</option>
+                <option value="ACCL">ACCL</option>
+                <option value="GYRO">GYRO</option>
+            </select>
+        </div>
+        <div id="plot"></div>
+        <div id="selectedPoint"></div>
+    </div>
+
+    <script>
+        // Function to update the plot based on selected axes
+        function updatePlot() {
+            const xAxis = document.getElementById('xAxis').value;
+            const yAxis = document.getElementById('yAxis').value;
+            fetch(`/get_plot_data?x=${xAxis}&y=${yAxis}`)
+                .then(response => {
+                    return response.json()
+                })
+                .then(data => {
+                    const traces = [];
+                    // Create a trace for each category in the mapping
+                    Object.entries(data.legend).forEach(([category, color]) => {
+                        const filteredIndices = data.colours
+                            .map((c, i) => c === color ? i : -1)
+                            .filter(i => i !== -1);
+
+                        const filteredX = filteredIndices.map(i => data.x[i]);
+                        const filteredY = filteredIndices.map(i => data.y[i]);
+                        const filteredFrames = filteredIndices.map(i => data.frames[i]);
+                        
+                        traces.push({
+                        x: filteredX,
+                        y: filteredY,
+                        mode: 'markers',
+                        type: 'scatter',
+                        marker: {
+                            color: color,
+                            size: 8,
+                            opacity: 0.8
+                        },
+                        name: category, // Legend entry
+                        text: filteredFrames.map(frame => `Frame: ${frame}`),
+                        hoverinfo: 'text'
+                        })
+                    })
+
+                    const layout = {
+                        title: `${xAxis} vs ${yAxis}`,
+                        xaxis: { title: xAxis },
+                        yaxis: { title: yAxis },
+                        hovermode: 'closest',
+                        showlegend: true // Ensure the legend is displayed
+                    };
+
+                    Plotly.newPlot('plot', traces, layout);
+
+                    // Add click event handler
+                    document.getElementById('plot').on('plotly_click', function(eventData) {
+                        const points = eventData.points; // Array of clicked points
+                        const selectedPointsInfo = points.map(point => {
+                            const traceFrames = point.data.text; // Hover text contains "Frame: X"
+                            const frameInfo = traceFrames[point.pointIndex]; // Get the corresponding frame
+                            return `Trace: ${point.curveNumber}, ${frameInfo}`;
+                        });
+
+                        // Display all selected points' frame indices with trace information
+                        document.getElementById('selectedPoint').innerHTML = 
+                            `Selected Points:<br>${selectedPointsInfo.join('<br>')}`;
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Add event listeners to dropdowns
+        document.getElementById('xAxis').addEventListener('change', updatePlot);
+        document.getElementById('yAxis').addEventListener('change', updatePlot);
+
+        // Initial plot
+        updatePlot();
+    </script>
+</body>
+</html>

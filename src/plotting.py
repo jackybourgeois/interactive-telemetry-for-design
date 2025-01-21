@@ -4,27 +4,22 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
-def calculate_PCs_and_magnitudes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, dict[str, int]]:
-    """
-    Calculate the principal components of a dataframe
-
-    Parameters:
-    df: pandas Dataframe containing the acc en gyro data.
-
-    Returns:
-    pd.DataFrame: A DataFrame containing the first six principal components.
-    """
+def prepare_data(df: pd.DataFrame):
     df = df.dropna()
-
-    labels = df['LABEL'].astype('category')  # Convert to categorical type
-    label_categories = {label: idx + 1 for idx, label in enumerate(labels.cat.categories)}
-    print("Label mapping:", label_categories)
-    labels = labels.map(label_categories)
-
+    frames = df.iloc[:, 7]
+    labels = df['LABEL'].astype('category') 
+    num_colors = len(labels.cat.categories)
+    color_palette = plt.cm.tab10.colors if num_colors <= 10 else plt.cm.tab20.colors
+    color_palette = color_palette[:num_colors]  # Select the required number of colors
+    label_color_mapping = {label: f"rgb({int(r*255)},{int(g*255)},{int(b*255)})"
+                           for (label, (r, g, b)) in zip(labels.cat.categories, color_palette)}
+    
+    labels = labels.map(label_color_mapping)
     df = df.iloc[:, 1:-2]  # Drop timestamp and label column
 
+
     scaler = StandardScaler()
-    standardized_df = scaler.fit_transform(df)  # Unlike the name suggests this is a 2d array not a dataframe
+    standardized_df = scaler.fit_transform(df)
 
     # Perform PCA
     pca = PCA(n_components=len(df.columns))
@@ -39,80 +34,12 @@ def calculate_PCs_and_magnitudes(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Ser
     principal_df['ACCL'] = np.sqrt(df['ACCL_x']**2 + df['ACCL_y']**2 + df['ACCL_z']**2)
     principal_df['GYRO'] = np.sqrt(df['GYRO_x']**2 + df['GYRO_y']**2 + df['GYRO_z']**2)
 
-    return principal_df, labels, label_categories
-
-
-def plot_data_with_categorical_labels(
-    df: pd.DataFrame, 
-    labels: pd.Series, 
-    col_x: str, 
-    col_y: str, 
-    label_mapping: dict[int, str] = None, 
-):
-    """
-    Plot a stratified sampled subset of data points from two columns of a DataFrame using Matplotlib, 
-    with point colors based on numeric categorical labels. Includes a legend.
-
-    Parameters:
-        df (pd.DataFrame): Input DataFrame containing the data to plot.
-        labels (pd.Series): Series containing numeric categorical labels (1 to N).
-        col_x (str): Name of the column to be used for the x-axis.
-        col_y (str): Name of the column to be used for the y-axis.
-        label_mapping (dict[int, str], optional): A dictionary mapping numeric labels to their string names.
-
-    Returns:
-        None: The function displays the plot.
-    """
-    sample_fraction = 1.0
-    # We set no random state to keep results truly random
-
-    # Ensure sampling fraction is valid
-    if not (0 < sample_fraction <= 1):
-        raise ValueError("sample_fraction must be between 0 and 1.")
-
-    # Combine the DataFrame and labels for consistent sampling
-    combined = df.copy()
-    combined['LABEL'] = labels
-
-    # Perform stratified sampling
-    stratified_sample = combined.groupby('LABEL', group_keys=False).apply(
-        lambda x: x.sample(frac=sample_fraction)
-    )
-    sampled_labels = stratified_sample['LABEL']
-    sampled = stratified_sample.drop(columns=['LABEL'])
-
-    # Assign unique colors to each label
-    unique_labels = sampled_labels.unique()
-    colors = plt.cm.get_cmap('tab10', len(unique_labels))  # Generate a colormap for labels
-    color_map = {label: colors(i) for i, label in enumerate(unique_labels)}
-
-    plt.figure(figsize=(8, 6))
-
-    # Scatter plot each class with its own color
-    for label in unique_labels:
-        subset = sampled[sampled_labels == label]
-        label_name = label_mapping[label] if label_mapping else f'Label {label}'
-        plt.scatter(
-            subset[col_x], subset[col_y], 
-            label=label_name, 
-            color=color_map[label], 
-            alpha=0.7, 
-            edgecolors='k'
-        )
-
-    plt.title(f'Plot of {col_x} against {col_y} (Stratified {sample_fraction * 100:.0f}%)')
-    plt.xlabel(col_x)
-    plt.ylabel(col_y)
-    plt.legend(title="Classes")
-    plt.grid(True, linestyle=':', alpha=0.6)
-    plt.show()
-
-
+    principal_df['FRAME'] = frames.values
+    principal_df['COLOUR'] = labels.values
+    return principal_df, label_color_mapping
 
 # Voorbeeld van gebruik, vrij grimmig
 
 # df = pd.read_csv('C:\projects\interactive-telemetry-for-design\data\CSVs\GoPro_test.csv')
-# principal_df, labels, label_mapping = calculate_PCs_and_magnitudes(df)
-
-# plot_data_with_categorical_labels(principal_df, labels, col_x='ACCL', col_y='GYRO', label_mapping={v: k for k, v in label_mapping.items()})
-
+# principal_df = prepare_data(df)
+# print(principal_df)

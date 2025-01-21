@@ -6,12 +6,12 @@
     <title>File Upload and Advanced Settings</title>
 </head>
 <body>
-    <h1>Horizontal rotierende fisch</h1>
+    <h1>Telemetry for design</h1>
 
     <!-- MP4 File Upload -->
     <div class="file-upload">
         <label for="mp4-upload">Upload GoPro Video:</label>
-        <input type="file" id="mp4-upload" accept=".mp4">
+        <input type="file" id="mp4-upload" accept=".mp4" onchange="checkContinue()">
     </div>
 
     <!-- Model File Upload -->
@@ -23,13 +23,13 @@
     <!-- Checkbox to Show/Hide CSV File Upload -->
     <div>
         <input type="checkbox" id="toggle-CSV-upload" onchange="toggleCSVUpload()">
-        <label for="toggle-CSV-upload">Upload IMU and Video Seperatly</label>
+        <label for="toggle-CSV-upload">Upload IMU and Video Separately</label>
     </div>
 
     <!-- CSV File Upload -->
     <div id="CSV-upload-container" style="display: none;">
         <label for="CSV-upload">Upload IMU data:</label>
-        <input type="file" id="CSV-upload" accept=".csv">
+        <input type="file" id="CSV-upload" accept=".csv" onchange="checkContinue()">
     </div>
 
     <!-- Advanced Settings -->
@@ -59,10 +59,35 @@
     <!-- Overlay to dim the background -->
     <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
 
+    <!-- Continue Button -->
+    <div>
+        <button id="continue-btn" style="background-color: grey; color: white; cursor: not-allowed;" disabled>Continue</button>
+    </div>
+
     <script>
         function toggleCSVUpload() {
             const CSVUploadContainer = document.getElementById('CSV-upload-container');
             CSVUploadContainer.style.display = CSVUploadContainer.style.display === 'none' ? 'block' : 'none';
+            checkContinue();
+        }
+
+        function checkContinue() {
+            const mp4Upload = document.getElementById('mp4-upload').files.length > 0;
+            const csvRequired = document.getElementById('toggle-CSV-upload').checked;
+            const csvUpload = document.getElementById('CSV-upload').files.length > 0;
+            const continueBtn = document.getElementById('continue-btn');
+
+            if (mp4Upload || (csvRequired && csvUpload && mp4Upload)) {
+                continueBtn.style.backgroundColor = 'green';
+                continueBtn.style.cursor = 'pointer';
+                continueBtn.disabled = false;
+                continueBtn.onclick = () => location.href = 'video_and_timeline_tab.html';
+            } else {
+                continueBtn.style.backgroundColor = 'grey';
+                continueBtn.style.cursor = 'not-allowed';
+                continueBtn.disabled = true;
+                continueBtn.onclick = null;
+            }
         }
 
         function showPopup() {
