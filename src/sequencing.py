@@ -47,8 +47,6 @@ def get_sequences_pure_data(sequence_list: list[np.ndarray]) -> np.ndarray:
 
     return np.stack(pure_data_list, axis=0)
 
-
-
 def get_pure_labels(sequence_list: list[np.ndarray]) -> np.ndarray:
     """
     Extracts only the last column from each 2D ndarray in the sequence list.

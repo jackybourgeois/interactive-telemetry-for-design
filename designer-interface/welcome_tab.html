@@ -4,67 +4,108 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Upload and Advanced Settings</title>
+    <style>
+        /* Add some basic styling for the buttons */
+        #used-mode-btn, #create-new-btn {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        
+        /* Hide the form content initially */
+        #main-content {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <h1>Telemetry for design</h1>
-
-    <!-- MP4 File Upload -->
-    <div class="file-upload">
-        <label for="mp4-upload">Upload GoPro Video:</label>
-        <input type="file" id="mp4-upload" accept=".mp4" onchange="checkContinue()">
+    <div id="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
-
-    <!-- Model File Upload -->
-    <div class="file-upload">
-        <label for="model-upload">Upload Saved Model:</label>
-        <input type="file" id="pt-upload" accept=".pt">
-    </div>
-
-    <!-- Checkbox to Show/Hide CSV File Upload -->
     <div>
-        <input type="checkbox" id="toggle-CSV-upload" onchange="toggleCSVUpload()">
-        <label for="toggle-CSV-upload">Upload IMU and Video Separately</label>
+        <button id="used-mode-btn" onclick="goToPredictContinue()">Use Trained Model</button>
     </div>
-
-    <!-- CSV File Upload -->
-    <div id="CSV-upload-container" style="display: none;">
-        <label for="CSV-upload">Upload IMU data:</label>
-        <input type="file" id="CSV-upload" accept=".csv" onchange="checkContinue()">
-    </div>
-
-    <!-- Advanced Settings -->
     <div>
-        <button id="advanced-settings-btn" onclick="showPopup()">Advanced Settings</button>
-        <div id="settings-fields" style="display: none;">
-            <label for="a1">Field A1:</label>
-            <input type="number" id="a1" value="3"><br>
-            <label for="a2">Field A2:</label>
-            <input type="number" id="a2" value="3"><br>
-            <label for="a3">Field A3:</label>
-            <input type="number" id="a3" value="3"><br>
-            <label for="a4">Field A4:</label>
-            <input type="number" id="a4" value="3"><br>
-            <label for="a5">Field A5:</label>
-            <input type="number" id="a5" value="3"><br>
-            <button onclick="retractSettings()">Retract Settings</button>
-        </div>
+        <button id="create-new-btn" onclick="showMainContent()">Create New Model</button>
     </div>
 
-    <!-- Popup -->
-    <div id="popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid black; padding: 20px; z-index: 1000;">
-        <p>WARNING: These settings have been tuned using validation datasets, changing the settings might result in a less effective model.</p>
-        <button onclick="confirmPopup()">Acknowledge</button>
-    </div>
+    <!-- Main content div that will be initially hidden -->
+    <div id="main-content">
+        <form method="POST" action="{{ url_for('handle_upload') }}" enctype="multipart/form-data" id="upload-form">
+            <!-- MP4 File Upload -->
+            <div class="file-upload">
+                <label for="mp4-upload">Upload GoPro Video:</label>
+                <input type="file" id="mp4-upload" name="mp4-upload" accept=".mp4" onchange="checkContinue()">
+            </div>
 
-    <!-- Overlay to dim the background -->
-    <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+            <!-- Checkbox to Show/Hide CSV File Upload -->
+            <div>
+                <input type="checkbox" id="toggle-CSV-upload" onchange="toggleCSVUpload()">
+                <label for="toggle-CSV-upload">Upload IMU and Video Separately</label>
+            </div>
 
-    <!-- Continue Button -->
-    <div>
-        <button id="continue-btn" style="background-color: grey; color: white; cursor: not-allowed;" disabled>Continue</button>
+            <!-- CSV File Upload -->
+            <div id="CSV-upload-container" style="display: none;">
+                <label for="CSV-upload">Upload IMU data:</label>
+                <input type="file" id="CSV-upload" name="CSV-upload" accept=".csv" onchange="checkContinue()">
+            </div>
+
+            <!-- Advanced Settings -->
+            <div>
+                <button type="button" id="advanced-settings-btn" onclick="showPopup()">Advanced Settings</button>
+                <div id="settings-fields" style="display: none;">
+                    <label for="a1">Field A1:</label>
+                    <input type="number" id="a1" name="a1" value="3"><br>
+                    <label for="a2">Field A2:</label>
+                    <input type="number" id="a2" name="a2" value="3"><br>
+                    <label for="a3">Field A3:</label>
+                    <input type="number" id="a3" name="a3" value="3"><br>
+                    <label for="a4">Field A4:</label>
+                    <input type="number" id="a4" name="a4" value="3"><br>
+                    <label for="a5">Field A5:</label>
+                    <input type="number" id="a5" name="a5" value="3"><br>
+                    <button type="button" onclick="retractSettings()">Retract Settings</button>
+                </div>
+            </div>
+
+            <!-- Popup -->
+            <div id="popup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid black; padding: 20px; z-index: 1000;">
+                <p>WARNING: These settings have been tuned using validation datasets, changing the settings might result in a less effective model.</p>
+                <button type="button" onclick="confirmPopup()">Acknowledge</button>
+            </div>
+
+            <!-- Overlay to dim the background -->
+            <div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+
+            <!-- Continue Button -->
+            <div>
+                <button type="submit" id="continue-btn" style="background-color: grey; color: white; cursor: not-allowed;" disabled>Continue</button>
+            </div>
+        </form>
     </div>
 
     <script>
+        // Function to go to predict continue page
+        function goToPredictContinue() {
+            window.location.href = 'predict_continue.html';
+        }
+
+        // Function to show main content
+        function showMainContent() {
+            document.getElementById('main-content').style.display = 'block';
+            document.getElementById('used-mode-btn').style.display = 'none';
+            document.getElementById('create-new-btn').style.display = 'none';
+        }
+
         function toggleCSVUpload() {
             const CSVUploadContainer = document.getElementById('CSV-upload-container');
             CSVUploadContainer.style.display = CSVUploadContainer.style.display === 'none' ? 'block' : 'none';
@@ -77,16 +118,14 @@
             const csvUpload = document.getElementById('CSV-upload').files.length > 0;
             const continueBtn = document.getElementById('continue-btn');
 
-            if (mp4Upload || (csvRequired && csvUpload && mp4Upload)) {
+            if (mp4Upload && (!csvRequired || (csvRequired && csvUpload))) {
                 continueBtn.style.backgroundColor = 'green';
                 continueBtn.style.cursor = 'pointer';
                 continueBtn.disabled = false;
-                continueBtn.onclick = () => location.href = 'video_and_timeline_tab.html';
             } else {
                 continueBtn.style.backgroundColor = 'grey';
                 continueBtn.style.cursor = 'not-allowed';
                 continueBtn.disabled = true;
-                continueBtn.onclick = null;
             }
         }
 
