@@ -1,29 +1,31 @@
 import numpy as np
 import pandas as pd
-from pprint import pprint
+from typing import Union
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import tensorflow as tf
 
-def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> np.ndarray:
+def create_sequence(df: pd.DataFrame, overlap: float, length: int, target_sequence_length: Union[int, None] = None) -> np.ndarray:
     """
-    Returns the dataframe split into sequences with consistent rounding.
+    Returns the dataframe split into sequences with consistent rounding and optional length control.
 
     Args:
         df: dataframe containing acc en gyro data.
-        overlap: Fraction of overlap between partitions (0 <= overlap <= 1).
+        overlap: Fraction of overlap between partitions (0 <= overlap < 1).
         length: Length of each sequence in seconds.
+        target_sequence_length: Optional desired length of output sequences.
+            If None, sequences retain original length.
+            If specified, sequences are padded or truncated to match.
 
     Returns:
         Padded numpy array of sequences.
     """
-    if not 0 <= overlap <= 1:
+    pprint(target_sequence_length)
+    if not 0 <= overlap < 1:
         raise ValueError('Overlap must be between 0 and 1')
 
-    # Calculate step size based on overlap
-    step = length * (1 - overlap)
+    overlap = 1 - overlap
     
-    # Ensure consistent rounding
-    max_time = np.floor(df['TIMESTAMP'].max())
+    max_time = df['TIMESTAMP'].max()
     
     tensors = []
     start = 0
@@ -36,7 +38,18 @@ def create_sequence(df: pd.DataFrame, overlap: float, length: int) -> np.ndarray
         if end > max_time:
             break
         
-        start = np.floor(start + step)
+        start += length*overlap
+
+    # Pad or truncate sequences if target_sequence_length is specified
+    if target_sequence_length is not None:
+        def adjust_sequence(seq):
+            if len(seq) > target_sequence_length:
+                return seq[:target_sequence_length]
+            elif len(seq) < target_sequence_length:
+                return np.pad(seq, ((0, target_sequence_length - len(seq)), (0, 0)), mode='constant')
+            return seq
+        
+        tensors = [adjust_sequence(seq) for seq in tensors]
 
     return pad_sequences(tensors, padding='post', dtype='float32')
 
@@ -99,44 +112,6 @@ def get_filtered_sequences_and_labels(sequence_list: list[np.ndarray]) -> tuple[
     padded = pad_sequences(filtered_sequences,maxlen=tensor_length,padding='post',dtype='float32')
     return get_sequences_pure_data(padded), get_pure_labels(padded)
 
-# def restitch_sequence(sequences: np.ndarray, overlap: float) -> np.ndarray:
-#     """
-#     Restitch sequences with a specified overlap, removing zero rows.
-    
-#     Args:
-#     sequences (np.ndarray): Input sequences to be restitched
-#     overlap (float): Fraction of overlap between sequences (0 <= overlap <= 1)
-    
-#     Returns:
-#     np.ndarray: Restitched sequences with zero rows removed
-#     """
-#     # If no sequences or only one sequence, return as is
-#     if len(sequences) <= 1:
-#         return sequences
-    
-#     # Calculate the number of non-zero rows to keep from each sequence
-#     non_zero_rows = int(sequences.shape[1] * (1 - overlap))
-    
-#     # Initialize list to store restitched sequences
-#     restitched = []
-    
-#     # Add the first sequence fully
-#     first_seq = sequences[0]
-#     first_seq_non_zero = first_seq[~np.all(first_seq == 0, axis=1)]
-#     restitched.append(first_seq_non_zero)
-    
-#     # Merge subsequent sequences
-#     for seq in sequences[1:]:
-#         # Remove zero rows from the current sequence
-#         seq_non_zero = seq[~np.all(seq == 0, axis=1)]
-        
-#         # If the number of non-zero rows is less than expected, use all non-zero rows
-#         seq_to_add = seq_non_zero[-min(non_zero_rows, len(seq_non_zero)):]
-        
-#         restitched.append(seq_to_add)
-    
-#     # Concatenate the sequences
-#     return np.concatenate(restitched, axis=0)
 
 def combine_and_restitch_sequences(original_sequences, predicted_labels, confidence_scores):
     """
