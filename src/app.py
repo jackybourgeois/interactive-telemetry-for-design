@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash
 from src.plotting import prepare_data
 from src.imu_extraction import extract_imu_data
 import pandas as pd
@@ -24,25 +24,37 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1000 * 1024 * 1024 # 50gb limit
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Test df
-df = pd.read_csv(Path('C:/projects/interactive-telemetry-for-design/data/CSVs/GoPro_test.csv'))
-setting = None
-principal_df, mapping = prepare_data(df)
+df = None
+settings = None
 
 @app.route('/')
 def upload_page():
     return render_template('welcome_tab.html')
 
-@app.route('/predict_continue')
-def predict():
-    return render_template('predict_continue.html')
+@app.route('/predict_continue.html', methods=['GET'])
+def predict_continue():
+    return render_template('predict_continue.html', show_model_upload=True)
 
-@app.route('/test')
-def test():
-    return render_template('test.html')
+@app.route('/alternative_continue', methods=['GET'])
+def predict_cont_no_show():
+    return render_template('predict_continue.html', show_model_upload=False)
+
+@app.route('/training', methods=['POST'])
+def training():
+    return render_template('training.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    return render_template('predict.html')
+
+@app.route('/download_model', methods=['GET'])
+def download_model():
+    # Empty route for you to implement the download functionality
+    pass
 
 @app.route('/data/uploads', methods=['POST'])
 def handle_upload():
-    # global df
+    global df
     global settings
     if request.method == 'POST':
         # Handle file uploads
@@ -118,6 +130,8 @@ def get_plot_data():
     x_col = request.args.get('x', 'PC_1')
     y_col = request.args.get('y', 'PC_2')
 
+    principal_df, mapping = prepare_data(df)
+
     data = {
         'x': principal_df[x_col].tolist(),
         'y': principal_df[y_col].tolist(),
@@ -130,6 +144,3 @@ def get_plot_data():
         status=200,
         mimetype='application/json'
     )
-
-if __name__ == '__main__':
-    app.run(debug=True)
