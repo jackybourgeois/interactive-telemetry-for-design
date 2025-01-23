@@ -19,7 +19,6 @@ def create_sequence(df: pd.DataFrame, overlap: float, length: int, target_sequen
     Returns:
         Padded numpy array of sequences.
     """
-    pprint(target_sequence_length)
     if not 0 <= overlap < 1:
         raise ValueError('Overlap must be between 0 and 1')
 

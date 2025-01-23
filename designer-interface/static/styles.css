@@ -1,0 +1,139 @@
+/* Reset styles to remove default padding/margins */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Body styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+}
+
+/* Navigation bar container */
+.navbar {
+    display: flex;
+    justify-content: space-between;  /* Space between logo and nav links */
+    align-items: center;
+    background-color: darkslategrey;
+    padding: 20px 50px;
+}
+
+/* Logo styling */
+.logo a {
+    color: #f5f5f5;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+/* Navigation links */
+.nav-links {
+    list-style: none;  /* Remove default bullets */
+    display: flex;     /* Arrange links horizontally */
+    gap: 30px;         /* Spacing between links */
+}
+
+.nav-links li {
+    display: inline;
+}
+
+/* Navigation link styling */
+.nav-links a {
+    text-decoration: none;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+/* Hover effect */
+.nav-links a:hover {
+    color: rgb(223, 235, 223);
+}
+
+/* Responsive navigation for mobile screens */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;  /* Stack items vertically */
+        text-align: center;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
+
+/* Content section for demonstration */
+.content {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.content h1 {
+    font-size: 2.5rem;
+    color: #1e1e1e;
+}
+
+.content p {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 50px;
+}
+
+/* Big Start Button */
+.start-button {
+    display: inline-block;
+    background-color: darkslategrey;
+    color: #fff;
+    font-size: 2rem;
+    font-weight: bold;
+    padding: 20px 60px;
+    border-radius: 50px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.start-button:hover {
+    background-color: darkseagreen;
+    transform: scale(1.05);
+}
+
+.small-button {
+    display: inline-block;
+    background-color: darkslategrey;
+    color: #fff;
+    font-size: 1rem; /* Slightly smaller font size */
+    font-weight: bold;
+    padding: 10px 30px; /* Slightly smaller padding */
+    border-radius: 50px;
+    text-decoration: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.small-button:hover {
+    background-color: darkseagreen;
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;  
+        text-align: center;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .start-button {
+        font-size: 1.5rem;
+        padding: 15px 40px;
+    }
+}
