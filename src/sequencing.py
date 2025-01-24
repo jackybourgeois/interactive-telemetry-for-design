@@ -125,13 +125,13 @@ def combine_and_restitch_sequences(original_sequences, predicted_labels, confide
         np.ndarray: Restitched combined sequences
     """
     # Extract only the first 7 columns from original sequences
-    original_sequences = original_sequences[:, :, :7]
+    original_sequences = original_sequences[:, :, :8]
     
     # Add predicted labels as an additional column
     combined_sequences = np.concatenate([
         original_sequences, 
         predicted_labels[..., np.newaxis], 
-        confidence_scores
+        confidence_scores[..., np.newaxis]
     ], axis=2)
     
     # Flatten sequences for restitching
@@ -145,3 +145,41 @@ def combine_and_restitch_sequences(original_sequences, predicted_labels, confide
     restitched_sequence = restitched_sequence[~np.all(restitched_sequence == 0, axis=1)]
     
     return restitched_sequence
+
+
+def save_used_data(data, labels, used=None):
+    """
+    Concatenate data and labels, and optionally append to existing used data.
+    
+    Parameters:
+    -----------
+    data : ndarray
+        Input data array of shape (n, m, 6)
+    labels : ndarray
+        Labels array of shape (n, m, k)
+    used : ndarray, optional
+        Previously used data array of shape (n, m, 6+l)
+    
+    Returns:
+    --------
+    ndarray
+        Concatenated data array of shape (2n, m, 6+k) or (n, m, 6+k)
+    """
+    # Concatenate data and labels along the last axis
+    combined_data = np.concatenate([data, labels], axis=2)
+    
+    # If no used data provided, return the combined data
+    if used is None:
+        return combined_data
+    
+    # Ensure labels dimension matches used data
+    k = labels.shape[2]
+    l = used.shape[2] - 6
+    
+    # Pad used data with zeros if needed
+    if k != l:
+        zero_pad = np.zeros((*used.shape[:2], k-l), dtype=used.dtype)
+        used = np.concatenate([used, zero_pad], axis=2)
+    
+    # Concatenate used data vertically with combined data
+    return np.concatenate([used, combined_data], axis=0)

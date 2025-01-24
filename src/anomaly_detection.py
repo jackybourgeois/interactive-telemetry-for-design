@@ -1,20 +1,29 @@
 import numpy as np
 
-def calculate_confidence(predictions):
+def detect_anomalies(predictions, threshold=0.25):
+    sorted_probs = np.sort(predictions, axis=-1)
+    one_minus_two = sorted_probs[:, :, -1] - sorted_probs[:, :, -2]
+    anomalies = one_minus_two < threshold
+
+    num_anomaly_blocks = sum(np.diff(np.concatenate(([False], seq, [False]))).astype(int) > 0).sum() for seq in anomalies)
+
+    return anomalies, num_anomaly_blocks
+
+def calculate_entropy(predictions):
     """
-    Calculate confidence scores for each data point in the sequence.
+    Calculate entropy for predicted probabilities at each timestep.
 
     Args:
-        predictions (numpy.ndarray): The predicted probabilities for each timestep and class.
+        predictions (numpy.ndarray): Predicted probabilities for each class at each timestep.
             Shape: (num_sequences, timesteps, num_classes).
 
     Returns:
-        numpy.ndarray: Confidence scores for each timestep.
+        numpy.ndarray: Entropy scores for each timestep.
             Shape: (num_sequences, timesteps).
     """
-    sorted_probs = np.sort(predictions, axis=-1)
-    confidence_scores = sorted_probs[:, :, -1] - sorted_probs[:, :, -2]
-    return confidence_scores
+    epsilon = 1e-9  # To avoid log(0)
+    entropy = -np.sum(predictions * np.log(predictions + epsilon), axis=-1)
+    return entropy
 
 
 def calculate_running_average_confidence(confidence_scores):

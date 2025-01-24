@@ -1,40 +1,7 @@
 import numpy as np
 import pandas as pd
 import av
-
-
-def frametimes(video_path):
-
-    # Open the video file
-    container = av.open(video_path)
-
-    # Get the video stream (usually index 0 for the first video stream)
-    video_stream = container.streams.video[0]
-
-
-    # Retrieve video info
-    total_frames = video_stream.frames  # Number of frames
-    duration_ts = video_stream.duration  # Total duration in time units (PTS)
-    time_base = video_stream.time_base  # Time base to convert duration_ts to seconds
-    duration_seconds = float(duration_ts * time_base) # Duration of the video in seconds
-
-
-    # Storage for frame intervals
-    frame_intervals = []
-
-
-    # Decode video frames
-    for i, frame in enumerate(container.decode(video=0)):
-        # TODO: If the video stream is corrupted, it could cause infinitely repeated decoding attempts. Might need if check in case it's unstable during testing
-
-        # Update frame info
-        start_time = float(frame.pts * time_base)
-        frame_intervals.append(start_time)
-
-    end_time = duration_seconds
-    frame_intervals.append(end_time)
-
-    return total_frames, frame_intervals
+import cv2
 
 
 def getIMU(dataframe_path):
@@ -56,6 +23,37 @@ def add_frame_index(df, total_frames, frame_intervals):
     df["FRAME_INDEX"] = pd.cut(df["TIMESTAMP"], bins=frame_intervals, labels=frame_labels, include_lowest=True)
 
     return df
+
+
+def frame_index(video_path, dataframe):
+
+    # Open the video file
+    video = cv2.VideoCapture(video_path)
+
+    if not video.isOpened():
+        print("Error: Cannot open video file.")
+
+    else:
+        # Total number of frames
+        total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+        # Frame rate (frames per second)
+        fps = video.get(cv2.CAP_PROP_FPS)
+    
+        # Frame interval (time between frames in seconds)
+        frame_interval = 1 / fps if fps != 0 else None
+
+        # Storage for frame intervals
+        frame_intervals = [0]
+
+        for i in range(total_frames):
+            frame_intervals.append((i+1) * frame_interval)
+
+        dataframe = add_frame_index(dataframe, total_frames, frame_intervals)
+
+        dataframe["LABEL"] = None
+
+    return dataframe
 
 
 def dict_to_labeledframes(dict_list):

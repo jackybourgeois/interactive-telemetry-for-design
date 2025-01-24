@@ -27,17 +27,17 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 df = None
 settings = None
 
-@app.route('/asfhbdsa')
+@app.route('/')
 def upload_page():
     return render_template('welcome_tab.html')
 
 @app.route('/predict_continue.html', methods=['GET'])
 def predict_continue():
-    return render_template('predict_continue.html', show_model_upload=True)
+    return render_template('Predict_continue.html', show_model_upload=True)
 
 @app.route('/alternative_continue', methods=['GET'])
 def predict_cont_no_show():
-    return render_template('predict_continue.html', show_model_upload=False)
+    return render_template('Predict_continue.html', show_model_upload=False)
 
 @app.route('/test')
 def test():
@@ -100,7 +100,7 @@ def upload_files():
             print(f"Error while reading CSV: {e}")
             flash("An error occurred while reading the CSV file.")
             if ik_haat_dit:
-                return redirect(url_for('predict_continue'))
+                return redirect(url_for('Predict_continue'))
             return redirect(url_for('predict_cont_no_show'))
     
         required_columns = ["TIMESTAMP", "ACCL_x", "ACCL_y", "ACCL_z", "GYRO_x", "GYRO_y", "GYRO_z"]
@@ -207,21 +207,22 @@ def handle_upload():
     flash("You need to upload something")
     return redirect(url_for('upload_page'))
 
-@app.route('/')
+
+@app.route('/plot')
 def plot():
-    return render_template('plot.html')
+    return Path('designer-interface/plot.html').read_text()
 
 @app.route('/get_plot_data')
 def get_plot_data():
     x_col = request.args.get('x', 'PC_1')
     y_col = request.args.get('y', 'PC_2')
 
-    principal_df, mapping = prepare_data(df, 0.4)
+    principal_df, mapping = prepare_data(df)
 
     data = {
         'x': principal_df[x_col].tolist(),
         'y': principal_df[y_col].tolist(),
-        'frames': principal_df['TIMESTAMP'].tolist(),
+        'frames': principal_df['FRAME'].tolist(),
         'colours': principal_df['COLOUR'].tolist(),
         'legend': mapping
     }
