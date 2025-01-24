@@ -27,7 +27,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 df = None
 settings = None
 
-@app.route('/')
+@app.route('/asfhbdsa')
 def upload_page():
     return render_template('welcome_tab.html')
 
@@ -207,22 +207,21 @@ def handle_upload():
     flash("You need to upload something")
     return redirect(url_for('upload_page'))
 
-
-@app.route('/plot')
+@app.route('/')
 def plot():
-    return Path('designer-interface/plot.html').read_text()
+    return render_template('plot.html')
 
 @app.route('/get_plot_data')
 def get_plot_data():
     x_col = request.args.get('x', 'PC_1')
     y_col = request.args.get('y', 'PC_2')
 
-    principal_df, mapping = prepare_data(df)
+    principal_df, mapping = prepare_data(df, 0.4)
 
     data = {
         'x': principal_df[x_col].tolist(),
         'y': principal_df[y_col].tolist(),
-        'frames': principal_df['FRAME'].tolist(),
+        'frames': principal_df['TIMESTAMP'].tolist(),
         'colours': principal_df['COLOUR'].tolist(),
         'legend': mapping
     }
