@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
+tf.config.run_functions_eagerly(True)
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import LSTM, Dense, TimeDistributed, Dropout
 from tensorflow.keras import mixed_precision
@@ -10,6 +11,8 @@ import pickle
 import src.sequencing as sequencing
 import os
 import zipfile
+from pprint import pprint
+import copy
 
 mixed_precision.set_global_policy("mixed_float16")
 
@@ -18,13 +21,13 @@ def build_seq2seq_lstm(
     input_shape, 
     num_classes, 
     dropout=0.2, 
-    dense_activation="sigmoid", 
+    dense_activation="softmax", 
     LSTM_activation="tanh", 
     LSTM_units=256, 
     optimizer="adam", 
-    loss="binary_crossentropy", 
+    loss="categorical_crossentropy", 
     metrics=["accuracy"],
-    learning_rate=0.001,
+    learning_rate=0.0001,
     weight_decay=None
 ):
     """
@@ -79,7 +82,7 @@ def train_model(
     X_val=None,
     y_val=None,
     sample_weight=None,
-    batch_size=16,
+    batch_size=8,
     epochs=10,
     gpu_device="/GPU:0"
 ):
@@ -124,6 +127,7 @@ def train_model(
 
 
 def label_vectorize(df, label_mapping, unique_labels):
+    print(f"Original labels shape: {df['LABEL'].shape}")
     df["LABEL"] = df["LABEL"].map(label_mapping)
     n_labels = len(label_mapping)
     label_df = tf.one_hot(df["LABEL"].values, depth=n_labels)
@@ -135,17 +139,26 @@ def label_vectorize(df, label_mapping, unique_labels):
 
     df = df.drop(columns=["LABEL"]).reset_index(drop=True)
     df = pd.concat([df, label_columns], axis=1)
-
+    # print(f"One-hot encoded labels shape: {df.shape}") # test
     return df
 
 
-def most_frequent_label(predictions):
-    counts = np.bincount(predictions)
-    max_count = np.max(counts)
-    most_frequent = np.where(counts == max_count)[0]
-    if len(most_frequent) > 1:
-        return most_frequent[0]  # Return the first label in case of a tie
-    return most_frequent[0]
+def most_frequent_label(labels, label_mapping):
+    """
+    Finds the most frequent label in the given array of labels.
+
+    Args:
+        labels (numpy.ndarray): Array of string labels.
+        label_mapping (dict): Mapping from label names to label indices.
+
+    Returns:
+        str: The most frequent label.
+    """
+    # Convert string labels to integer indices
+    label_indices = np.array([label_mapping[label] for label in labels])
+    most_frequent_index = np.bincount(label_indices).argmax()
+    reverse_label_mapping = {idx: label for label, idx in label_mapping.items()}
+    return reverse_label_mapping[most_frequent_index]
 
 
 def predict(model, sequences, label_mapping):
@@ -163,60 +176,78 @@ def predict(model, sequences, label_mapping):
     # Predict current video
     predict_sequences = sequencing.get_sequences_pure_data(sequences)
     predictions = model.predict(predict_sequences)  # shape: batches, n_datapoints, n_labels
-
     predicted_classes = np.argmax(predictions, axis=-1)
     confidence_scores = np.max(predictions, axis=-1)
 
     # Map the predicted classes to their corresponding string labels
     reverse_label_mapping = {idx: label for label, idx in label_mapping.items()}
-    predicted_labels = [reverse_label_mapping[pred_class] for pred_class in predicted_classes]
+    predicted_labels = [[reverse_label_mapping[pred_class] for pred_class in sequence] for sequence in predicted_classes]
+    predicted_labels = np.array(predicted_labels)
+   
 
     # Combine sequences, predicted labels, and confidence scores into a DataFrame
     prediction_data = sequencing.combine_and_restitch_sequences(sequences, predicted_labels, confidence_scores)
-    prediction_df = pd.DataFrame(prediction_data, columns=['TIMESTAMP', 'ACCL_x', 'ACCL_y', 'ACCL_z', 'GYRO_x', 'GYRO_y', 'GYRO_z', 'FRAME_INDEX', 'LABEL', 'CONFIDENCE'])
-    
-    result = prediction_df.groupby('FRAME_INDEX').apply(
-        lambda x: pd.Series({
-            'average_prediction': most_frequent_label(x['LABEL'].values),
-            'average_confidence': x['CONFIDENCE'].mean()
-        }, dtype=object)
-    ).reset_index()
+    prediction_df = pd.DataFrame(prediction_data, columns=['TIMESTAMP', 'ACCL_x', 'ACCL_y', 'ACCL_z', 'GYRO_x', 'GYRO_y', 'GYRO_z', 'FRAME_INDEX', 'LABEL', 'CONFIDENCE']).astype({'CONFIDENCE': np.float64})
 
-    result_list = result.to_dict(orient='records')
+    result_list = []
+
+    for frame_index, group in prediction_df.groupby('FRAME_INDEX'):
+        result_list.append({
+            'frame_number': int(float(frame_index)),
+            'label': group['LABEL'].value_counts().idxmax(),
+            'confidence': group['CONFIDENCE'].mean()
+        })
+
+    # result_list = result.to_dict(orient='records')
     return prediction_df, result_list
 
 
-def run_model(labeled_frames, settings, model=None, df=None, label_mapping=None, stored_sequences=None):
+def run_model(labeled_frames, settings, model=None, unlabeled_df=None, label_mapping={}, stored_sequences=None):
     # check if labels are the same
-    unique_labels = sorted(set(item["label"] for item in label_list))
-    current_labels = sorted(label_mapping.keys())
-    if unique_labels != current_labels:
+    unique_labels = sorted(set(item["label"] for item in labeled_frames))
+    if not set(unique_labels).issubset(set(label_mapping.keys())):
         settings["from_scratch"] = True
-        label_mapping = {label: idx for idx, label in enumerate(unique_labels)}
+        for label in unique_labels:
+            if label not in label_mapping:
+                label_mapping[label] = len(label_mapping)
+
     n_labels = len(label_mapping)
     
     # label datapoints
+    df = unlabeled_df.copy()
+    df.dropna(subset=["FRAME_INDEX"], inplace=True)
+    df["FRAME_INDEX"] = df["FRAME_INDEX"].astype(int)
     for item in labeled_frames:
         label = item["label"]
-        start_frame = item["beginning_frame"]
-        end_frame = item["end_frame"]
+        start_frame = item["frame_start"]
+        end_frame = item["frame_end"]
         
         df.loc[(df["FRAME_INDEX"] >= start_frame) & (df["FRAME_INDEX"] <= end_frame), "LABEL"] = label
-
+    
     # convert df using tf.one_hot
-    df = label_vectorize(df, label_mapping, unique_labels)
-
+    df = label_vectorize(df, label_mapping, label_mapping.keys())
+    # pprint(df.head(10)) # test
     # make sequences from df
     sequences = sequencing.create_sequence(df, settings["overlap"], settings["length"], target_sequence_length=settings["target_sequence_length"])
+    print(f'sequencing shape: {sequences.shape}')
     settings["target_sequence_length"] = sequences.shape[1]
-    padded_sequences, padded_labels = sequencing.get_filtered_sequences_and_labels(sequences)
-    all_sequences = sequencing.save_used(padded_sequences, padded_labels, stored_sequences)
+
+    padded_sequences, padded_labels = sequencing.get_filtered_sequences_and_labels(copy.deepcopy(sequences))
+    print(padded_sequences.shape)
+    print(padded_labels.shape)
+    if stored_sequences != None:
+        print(stored_sequences.shape)
+    all_sequences = sequencing.save_used_data(padded_sequences, padded_labels, stored_sequences)
+    print(all_sequences.shape)
     train_sequences, train_labels = all_sequences[:,:,0:6], all_sequences[:,:,6:]
 
     sample_weights = np.array([
         [1 if np.any(timestep != 0) else 0 for timestep in sequence]
         for sequence in train_sequences
     ])
+
+    print(f'{train_sequences.shape=}')
+    print(f'{train_labels.shape=}')
     
     # build model
     if settings["from_scratch"] == True:
@@ -247,11 +278,12 @@ def run_model(labeled_frames, settings, model=None, df=None, label_mapping=None,
     )
 
     prediction_df, result_list = predict(model, sequences, label_mapping)
+    settings["from_scratch"] = False
 
     return result_list, settings, model, prediction_df, label_mapping, unlabeled_df, padded_sequences, padded_labels
 
 
-def model_predict(settings, model, label_mapping):
+def model_predict(df, settings, model, label_mapping):
     n_labels = len(label_mapping)
 
     sequences = sequencing.create_sequence(df, settings["overlap"], settings["length"])
@@ -264,6 +296,8 @@ def model_predict(settings, model, label_mapping):
 
 def model_done(padded_sequences, padded_labels, stored_sequences):
     stored_sequences = sequencing.save_used_data(padded_sequences, padded_labels, stored_sequences)
+    # pprint(stored_sequences)
+    pprint(stored_sequences.shape)
     return stored_sequences
 
 
@@ -278,7 +312,7 @@ def save_model(model, label_mapping, settings, stored_sequences, filename="model
         pickle.dump(stored_sequences, f)
     
     # Create a zip file containing all the components
-    with zipfile.ZipFile(filename, "w") as zipf:
+    with zipfile.ZipFile(config.MODELS_DIR /filename, "w") as zipf:
         zipf.write("model.h5")
         zipf.write("label_mapping.pkl")
         zipf.write("settings.pkl")
@@ -291,13 +325,17 @@ def save_model(model, label_mapping, settings, stored_sequences, filename="model
     os.remove("stored_sequences.pkl")
     return
 
-def load_model(filename="model.zip"):
+def load_model(file_path="models/model.zip"):
     # Extract the zip file
-    with zipfile.ZipFile(filename, "r") as zipf:
+    with zipfile.ZipFile(file_path, "r") as zipf:
         zipf.extractall()
     
     # Load model and other components
-    model = tf.keras.models.load_model("model.h5")
+    model = tf.keras.models.load_model("model.h5", compile=False)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001, decay=None)
+    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
+    model.summary()
+
     with open("label_mapping.pkl", "rb") as f:
         label_mapping = pickle.load(f)
     with open("settings.pkl", "rb") as f:

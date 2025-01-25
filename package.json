@@ -1,0 +1,9 @@
+{
+    "name": "interactive-telemetry-for-design",
+    "scripts": {
+        "hot-reload": "browser-sync start --proxy \"localhost:6969\" --files \"app/templates/*.html, app/static/**/*\""
+    },
+    "devDependencies": {
+        "browser-sync": "^3.0.3"
+    }
+}

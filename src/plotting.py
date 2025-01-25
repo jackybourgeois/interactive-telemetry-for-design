@@ -4,13 +4,13 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
-def prepare_data(df: pd.DataFrame, confidence_threshold: float = 0):
+def prepare_data(df: pd.DataFrame, confidence_threshold: float = 0, sample_ratio: float = 0.5):
     # Replace None in LABEL with 'not labelled'
     df['LABEL'] = df['LABEL'].fillna('not labelled')
     
     # Change label to 'anomaly' for rows below confidence threshold
-    df.loc[df['CONFIDENCE'] < confidence_threshold, 'LABEL'] = 'anomaly'
-    
+    df.loc[df['CONFIDENCE'] <= confidence_threshold, 'LABEL'] = 'anomaly'
+
     timestamps = df.iloc[:, 0]
     labels = df['LABEL'].astype('category') 
     num_colors = len(labels.cat.categories)
@@ -40,4 +40,12 @@ def prepare_data(df: pd.DataFrame, confidence_threshold: float = 0):
 
     principal_df['TIMESTAMP'] = timestamps.values
     principal_df['COLOUR'] = labels.values
+
+    if sample_ratio > 0 and sample_ratio < 1:
+        original_df = principal_df.copy()
+        sampled_df = original_df.groupby('COLOUR', group_keys=False).apply(
+            lambda x: x.sample(frac=sample_ratio)
+        )
+        principal_df = sampled_df
+
     return principal_df, label_color_mapping

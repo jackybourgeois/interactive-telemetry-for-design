@@ -13,7 +13,6 @@ def extract_imu_data(file: Path):   	        # input is gopro video, sony, etc..
 
     imu_data = tp.normalized_imu()  # Data retrieved from normalized_imu function, relevant data
     length = len(imu_data)  # Get the number of IMU data samples
-    # print(length)
 
     all_rows = []
 

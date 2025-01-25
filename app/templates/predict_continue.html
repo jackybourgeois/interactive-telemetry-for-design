@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Predict Continue</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         .button-container {
             margin: 20px;
@@ -76,8 +76,8 @@
             <!-- Model Upload (conditionally shown) -->
             {% if show_model_upload %}
             <div class="file-upload">
-                <label for="model-upload">Upload Model (.pkl file):</label>
-                <input type="file" id="model-upload" name="model_upload" accept=".pkl" onchange="checkContinue()">
+                <label for="model-upload">Upload Model (.zip file):</label>
+                <input type="file" id="model-upload" name="model_upload" accept=".zip" onchange="checkContinue()">
             </div>
             {% else %}
             <div class="button-container">
@@ -121,8 +121,13 @@
         }
 
         function checkContinue() {
-            const modelHere = document.getElementById('model-upload').files.length > 0;
-            const modelUpload = (show_model_upload && modelHere) || (!show_model_upload && !modelHere);
+            let myBoolean = '{{ show_model_upload }}';
+
+            
+            const yeet = document.getElementById('model-upload')?.files?.length
+            const modelHere = (yeet === undefined) ? true : document.getElementById('model-upload').files.length > 0
+            // const modelHere = document.getElementById('model-upload')?.files?.length > 0;
+            const modelUpload = (myBoolean && modelHere) || (!myBoolean && !modelHere);
             const mp4Upload = document.getElementById('mp4-upload').files.length > 0;
             const csvRequired = document.getElementById('toggle-CSV-upload').checked;
             const csvUpload = document.getElementById('CSV-upload').files.length > 0;
@@ -146,6 +151,11 @@
                 predictBtn.disabled = true;
             }
         }
+        function setAction(action) {
+    document.getElementById('action-input').value = action;
+    // If you're using a form, you might want to submit it programmatically
+    document.forms[0].submit(); // Adjust selector if you have multiple forms
+}
     </script>
 </body>
 </html>

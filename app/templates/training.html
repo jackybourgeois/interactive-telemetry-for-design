@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Training</title>
+  <link rel="stylesheet" href="/static/css/training.css">
+  <script type="module" src="/static/js/training.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
+</head>
+<body>
+  <div id="top-panel">
+  <!-- Left Panel: Labels & Buttons -->
+  <div class="left-panel">
+    <h3>Labels</h3>
+    <!-- Add Label Only -->
+    <button id="addLabelButton">Add Label</button>
+    <div id="labelList"></div>
+
+    <!-- Epoch field (default=5, min=1) -->
+    <div style="margin-top: 10px;">
+      <label for="epochInput">Epochs:</label>
+      <input type="number" id="epochInput" value="5" min="1" />
+    </div>
+
+    <button id="sendAnnotationsButton" style="margin-top: 10px;">
+      Train and Predict
+    </button>
+
+    <form method="GET" action="{{ url_for('finish_training') }}">
+      <button id="finishButton" style="margin-top: 10px;" type="submit">Finish</button>
+    </form>
+  </div>
+
+  <!-- Main Panel: video + scrollable timelines -->
+  <div class="main-panel">
+    <div class="video-wrapper">
+      <video id="video" controls>
+        <source src="{{ video_src }}" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <!-- Timelines container: horizontally scrollable if wide -->
+    <div class="timelines-container">
+      <!-- 1) Ground Truth (editable) -->
+      <div class="timeline-row">
+        <div class="timeline-label">GT</div>
+        <div id="groundTruthTimeline" class="timeline-container">
+          <div class="playhead"></div>
+        </div>
+      </div>
+
+      <!-- 2) AI Predictions (read-only, adoptable) -->
+      <div class="timeline-row">
+        <div class="timeline-label">AI</div>
+        <div id="aiTimeline" class="timeline-container">
+        </div>
+      </div>
+
+      <!-- 3) Ci Predictions (read-only) -->
+      <div class="timeline-row">
+        <div class="timeline-label">Ci</div>
+        <div id="ciTimeline" class="timeline-container">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bottom-panel">
+
+
+  <!-- Plot Section -->
+  <div class="plot-section">
+    <div class="controls">
+      <label for="xAxis">X-Axis:</label>
+      <select id="xAxis">
+        <option value="PC_1">PC_1</option>
+        <option value="PC_2">PC_2</option>
+        <option value="PC_3">PC_3</option>
+        <option value="PC_4">PC_4</option>
+        <option value="PC_5">PC_5</option>
+        <option value="PC_6">PC_6</option>
+        <option value="ACCL">ACCL</option>
+        <option value="GYRO">GYRO</option>
+      </select>
+
+      <label for="yAxis">Y-Axis:</label>
+      <select id="yAxis">
+        <option value="PC_1">PC_1</option>
+        <option value="PC_2" selected>PC_2</option>
+        <option value="PC_3">PC_3</option>
+        <option value="PC_4">PC_4</option>
+        <option value="PC_5">PC_5</option>
+        <option value="PC_6">PC_6</option>
+        <option value="ACCL">ACCL</option>
+        <option value="GYRO">GYRO</option>
+      </select>
+    </div>
+    <div id="plot"></div>
+    <div id="selectedPoint"></div>
+  </div>
+</div>
+
+</div>
+<script defer>
+const sliderValue = document.getElementById('sliderValue');
+function updateValue(value) {
+  console.log(value)
+  sliderValue.textContent = `Current Value: ${parseFloat(value).toFixed(2)}`;
+}
+// Function to update the plot based on selected axes
+function updatePlot() {
+  const xAxis = document.getElementById('xAxis').value;
+  const yAxis = document.getElementById('yAxis').value;
+  // fetch(`/get_plot_data?x=${xAxis}&y=${yAxis}&ci=${document.querySelector('#anomalyThreshold').value}`)
+  console.log('sending data...')
+  fetch('/get_plot_data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({x: xAxis, y: yAxis})
+  })
+      .then(response => {
+          console.log('got response back, trying to unpack...')
+          return response.json()
+      })
+      .then(data => {
+          const traces = [];
+          // Create a trace for each category in the mapping
+          Object.entries(data.legend).forEach(([category, color]) => {
+              const filteredIndices = data.colours
+                  .map((c, i) => c === color ? i : -1)
+                  .filter(i => i !== -1);
+
+              const filteredX = filteredIndices.map(i => data.x[i]);
+              const filteredY = filteredIndices.map(i => data.y[i]);
+              const filteredFrames = filteredIndices.map(i => data.frames[i]);
+              
+              traces.push({
+              x: filteredX,
+              y: filteredY,
+              mode: 'markers',
+              type: 'scatter',
+              marker: {
+                  color: color,
+                  size: 8,
+                  opacity: 0.8
+              },
+              name: category, // Legend entry
+              text: filteredFrames.map(frame => `Time: ${frame}`),
+              hoverinfo: 'text'
+              })
+          })
+
+          const layout = {
+              title: `${xAxis} vs ${yAxis}`,
+              xaxis: { title: xAxis },
+              yaxis: { title: yAxis },
+              hovermode: 'closest',
+              showlegend: true // Ensure the legend is displayed
+          };
+
+          Plotly.newPlot('plot', traces, layout);
+
+          document.getElementById('plot').on('plotly_click', function(eventData) {
+        const points = eventData.points;
+        const timestamps = points.map(point => point.data.text[point.pointIndex]);
+      
+      // Assuming timestamp is a direct video time value
+      const firstTimestamp = parseFloat(timestamps[0].split(': ')[1]);
+      
+      // Seek video to clicked point's timestamp
+      document.getElementById('video').currentTime = firstTimestamp;
+    });
+  })
+  .catch(error => console.error('Error:', error));
+}
+
+// Add event listeners to dropdowns
+document.getElementById('xAxis').addEventListener('change', updatePlot);
+document.getElementById('yAxis').addEventListener('change', updatePlot);
+
+// Initial plot
+updatePlot();
+</script>
+</body>
+</html>

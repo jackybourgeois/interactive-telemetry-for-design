@@ -3,6 +3,7 @@ import pandas as pd
 from typing import Union
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import tensorflow as tf
+from pprint import pprint
 
 def create_sequence(df: pd.DataFrame, overlap: float, length: int, target_sequence_length: Union[int, None] = None) -> np.ndarray:
     """
@@ -50,7 +51,7 @@ def create_sequence(df: pd.DataFrame, overlap: float, length: int, target_sequen
         
         tensors = [adjust_sequence(seq) for seq in tensors]
 
-    return pad_sequences(tensors, padding='post', dtype='float32')
+    return np.stack(pad_sequences(tensors, padding='post', dtype='float32'), axis=0)
 
 def get_sequences_pure_data(sequence_list: list[np.ndarray]) -> np.ndarray:
     """
@@ -81,35 +82,34 @@ def get_pure_labels(sequence_list: list[np.ndarray]) -> np.ndarray:
     return np.stack(labels_list, axis=0)
 
 def get_filtered_sequences_and_labels(sequence_list: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Filters the sequences based on the conditions:
-    1. If the last column of a sequence contains only NaNs, delete that sequence.
-    2. If a sequence has integers (non-NaN values) in the last column, remove all rows with NaNs in the last column but keep rows with integers.
+   """
+   Filters the sequences based on the conditions:
+   1. If columns after the 8th contain only zeros, delete that sequence.
+   2. For invalid rows, set first 8 columns to zero.
 
-    Args:
-        sequence_list: List of 2D ndarrays.
+   Args:
+       sequence_list: List of 2D ndarrays.
 
-    Returns:
-        A list of filtered sequences.
-    """
-    tensor_length = len(sequence_list[0])
-    filtered_sequences = []
+   Returns:
+       Filtered sequences and labels.
+   """
+   tensor_length = len(sequence_list[0])
+   filtered_sequences = []
 
-    for sequence in sequence_list:
-        last_column = sequence[:, -1]
-        
-        # Case 1: If the last column contains only NaNs, skip this sequence
-        if np.all(np.isnan(last_column)):
-            continue
-        
-        # Case 2: If the last column contains integers and NaNs, remove rows with NaNs in the last column
-        valid_rows = ~np.isnan(last_column)  # Boolean mask for non-NaN values
-        filtered_sequence = sequence[valid_rows]  # Keep only the valid rows (non-NaN in the last column)
-        
-        filtered_sequences.append(filtered_sequence)
+   for sequence in sequence_list:
+       columns_after_eight = sequence[:, 8:]
+       
+       # Case 1: If columns after 8th contain only zeros, skip this sequence
+       if np.all(columns_after_eight == 0):
+           continue
+       
+       # Case 2: Set first 8 columns to zero for rows with zeros in columns after 8th
+       invalid_rows = np.all(columns_after_eight == 0, axis=1)
+       sequence[invalid_rows, :8] = 0
+       
+       filtered_sequences.append(sequence)
 
-    padded = pad_sequences(filtered_sequences,maxlen=tensor_length,padding='post',dtype='float32')
-    return get_sequences_pure_data(padded), get_pure_labels(padded)
+   return get_sequences_pure_data(filtered_sequences), get_pure_labels(filtered_sequences)
 
 
 def combine_and_restitch_sequences(original_sequences, predicted_labels, confidence_scores):
@@ -130,8 +130,8 @@ def combine_and_restitch_sequences(original_sequences, predicted_labels, confide
     # Add predicted labels as an additional column
     combined_sequences = np.concatenate([
         original_sequences, 
-        predicted_labels[..., np.newaxis], 
-        confidence_scores[..., np.newaxis]
+        predicted_labels[:,:, np.newaxis], 
+        confidence_scores[:,:, np.newaxis]
     ], axis=2)
     
     # Flatten sequences for restitching
