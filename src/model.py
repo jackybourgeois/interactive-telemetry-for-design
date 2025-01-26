@@ -235,8 +235,6 @@ def run_model(labeled_frames, settings, model=None, unlabeled_df=None, label_map
     padded_sequences, padded_labels = sequencing.get_filtered_sequences_and_labels(copy.deepcopy(sequences))
     print(padded_sequences.shape)
     print(padded_labels.shape)
-    if stored_sequences != None:
-        print(stored_sequences.shape)
     all_sequences = sequencing.save_used_data(padded_sequences, padded_labels, stored_sequences)
     print(all_sequences.shape)
     train_sequences, train_labels = all_sequences[:,:,0:6], all_sequences[:,:,6:]
