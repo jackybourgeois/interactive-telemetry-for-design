@@ -43,7 +43,7 @@ def prepare_data(df: pd.DataFrame, confidence_threshold: float = 0, sample_ratio
 
     if sample_ratio > 0 and sample_ratio < 1:
         original_df = principal_df.copy()
-        sampled_df = original_df.groupby('COLOUR', group_keys=False).apply(
+        sampled_df = original_df.groupby('COLOUR', group_keys=False, observed=False).apply(
             lambda x: x.sample(frac=sample_ratio)
         )
         principal_df = sampled_df

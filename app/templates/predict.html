@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <title>Predict and Detect Anomalies</title>
   <link rel="stylesheet" href="/static/css/training.css">
+  <style>
+      .label-button:hover {
+    opacity: 1 !important;
+  }
+    .label-button {
+      cursor: auto !important;
+    }
+  </style>
   <script type="module" src="/static/js/predict.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
 </head>
@@ -57,7 +65,7 @@
           <!-- Timelines container: horizontally scrollable if wide -->
           <div class="timelines-container">
             <!-- 1) Ground Truth (editable) -->
-            <div class="timeline-row hidden">
+            <div class="timeline-row">
               <div class="timeline-label">GT</div>
               <div id="groundTruthTimeline" class="timeline-container">
                 <div class="playhead"></div>
@@ -127,7 +135,6 @@
     function updatePlot() {
         const xAxis = document.getElementById('xAxis').value;
         const yAxis = document.getElementById('yAxis').value;
-        // fetch(`/get_plot_data?x=${xAxis}&y=${yAxis}&ci=${document.querySelector('#anomalyThreshold').value}`)
         console.log('sending data...')
         fetch('/get_plot_data', {
             method: 'POST',

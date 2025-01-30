@@ -134,6 +134,7 @@ Keep in mind that loading large video files may take a few seconds.
 
 - **Adopting Predictions**:
     - Click on a block in the AI timeline and then on 'adopt' to apply the prediction to the ground truth timeline.
+    - This is the active learning part: based on the confidence the model has (visualised by red-green gradient on Ci timeline), users are adviced to annotate the most uncertain parts first and can decide when to stop annotating.
     - **Note**: This action overrides any overlapping user-annotated blocks, so use it cautiously.
 
 - **Model Training Constraints**:

@@ -110,7 +110,8 @@ def process_blocks():
     # print('model:')
     # print(model)
     results = modelfunc.run_model(blocks, settings, model=model, unlabeled_df=df, label_mapping=label_mapping, stored_sequences=stored_sequences)
-    result_list, settings, model, prediction_df, label_mapping, df, padded_sequences, padded_labels = results
+    result_list, settings, model, prediction_df, label_mapping, padded_sequences, padded_labels = results
+    
 
     print('Received blocks from GT:', blocks)
     print('Requested epochs:', epochs)
@@ -143,8 +144,21 @@ def process_blocks():
 @app.route('/data/uploads', methods=['POST'])
 def handle_upload():
     global df
+    global label_mapping
+    global model
+    global stored_sequences
     global settings
     global prediction_df
+
+    label_mapping = {}
+    stored_sequences = None
+    model = None
+    settings = {}
+
+    if 'video_path' in settings:
+        del settings['video_path']
+    if 'imu_path' in settings:
+        del settings['imu_path']
 
     # Handle file uploads
     mp4_file = request.files.get('mp4-upload')
@@ -231,6 +245,12 @@ def upload_files():
     global label_mapping
     global settings
     global stored_sequences
+
+    if 'video_path' in settings:
+        del settings['video_path']
+    if 'imu_path' in settings:
+        del settings['imu_path']
+
     model_file = request.files.get('model_upload')
     video_file = request.files.get('mp4_upload')
     csv_file = request.files.get('csv_upload')
@@ -248,6 +268,10 @@ def upload_files():
         settings['model_path'] = str(model_path)
         try:
             model, label_mapping, settings, stored_sequences = load_model(str(model_path))
+            if 'video_path' in settings:
+                del settings['video_path']
+            if 'imu_path' in settings:
+                del settings['imu_path']
         except Exception as e:
             flash('Error with uploaded zip')
             print(e)

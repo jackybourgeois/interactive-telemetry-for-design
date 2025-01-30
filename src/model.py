@@ -186,7 +186,7 @@ def predict(model, sequences, label_mapping):
    
 
     # Combine sequences, predicted labels, and confidence scores into a DataFrame
-    prediction_data = sequencing.combine_and_restitch_sequences(sequences, predicted_labels, confidence_scores)
+    prediction_data = sequencing.combine_and_restitch_sequences(copy.deepcopy(sequences), predicted_labels, confidence_scores)
     prediction_df = pd.DataFrame(prediction_data, columns=['TIMESTAMP', 'ACCL_x', 'ACCL_y', 'ACCL_z', 'GYRO_x', 'GYRO_y', 'GYRO_z', 'FRAME_INDEX', 'LABEL', 'CONFIDENCE']).astype({'CONFIDENCE': np.float64})
 
     result_list = []
@@ -204,7 +204,7 @@ def predict(model, sequences, label_mapping):
 
 def run_model(labeled_frames, settings, model=None, unlabeled_df=None, label_mapping={}, stored_sequences=None):
     # check if labels are the same
-    unique_labels = sorted(set(item["label"] for item in labeled_frames))
+    unique_labels = set(item["label"] for item in labeled_frames)
     if not set(unique_labels).issubset(set(label_mapping.keys())):
         settings["from_scratch"] = True
         for label in unique_labels:
@@ -277,12 +277,14 @@ def run_model(labeled_frames, settings, model=None, unlabeled_df=None, label_map
 
     prediction_df, result_list = predict(model, sequences, label_mapping)
     settings["from_scratch"] = False
-
-    return result_list, settings, model, prediction_df, label_mapping, unlabeled_df, padded_sequences, padded_labels
+    print(f'lenth of result_list: {len(result_list)}')
+    return result_list, settings, model, prediction_df, label_mapping, padded_sequences, padded_labels
 
 
 def model_predict(df, settings, model, label_mapping):
     n_labels = len(label_mapping)
+    df.dropna(subset=["FRAME_INDEX"], inplace=True)
+    df["FRAME_INDEX"] = df["FRAME_INDEX"].astype(int)
 
     sequences = sequencing.create_sequence(df, settings["overlap"], settings["length"])
     prediction_df, result_list = predict(model, sequences, label_mapping)
@@ -327,12 +329,6 @@ def load_model(file_path="models/model.zip"):
     # Extract the zip file
     with zipfile.ZipFile(file_path, "r") as zipf:
         zipf.extractall()
-    
-    # Load model and other components
-    model = tf.keras.models.load_model("model.h5", compile=False)
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001, decay=None)
-    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
-    model.summary()
 
     with open("label_mapping.pkl", "rb") as f:
         label_mapping = pickle.load(f)
@@ -340,6 +336,12 @@ def load_model(file_path="models/model.zip"):
         settings = pickle.load(f)
     with open("stored_sequences.pkl", "rb") as f:
         stored_sequences = pickle.load(f)
+
+    # Load model and other components
+    model = tf.keras.models.load_model("model.h5", compile=False)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=settings['learning_rate'], decay=None)
+    model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
+    model.summary()
     
     # Remove extracted files
     os.remove("model.h5")

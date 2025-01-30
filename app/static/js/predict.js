@@ -22,6 +22,8 @@ let activeBlockId = null;
 // Selected AI block
 let selectedAIBlockId = null;
 
+let colorIndex = -1;
+
 /********************************************************************
  * DOM REFERENCES
  ********************************************************************/
@@ -47,7 +49,7 @@ const timelinesContainer = document.querySelector('.timelines-container');
 const FPS = 60000 / 1001;
 
 // 1 px = 15 frames
-const FRAMES_PER_PIXEL = 15;
+const FRAMES_PER_PIXEL = 5;
 
 // We'll ensure timeline width is at least some fallback
 const MIN_TIMELINE_WIDTH = 1600;
@@ -60,6 +62,31 @@ const DEFAULT_BLOCK_WIDTH_PX = 70;
  ********************************************************************/
 video.addEventListener('loadedmetadata', () => {
   initTimelines();
+
+  fetch('/get_labels')
+  .then(response => response.json())
+  .then(data => {
+    for (const label of data.labels) {
+      colorIndex++;
+      const color = getRandomColor(colorIndex);
+      const labelId = Date.now() + '-' + Math.random();
+      const labelObj = { id: labelId, name: label, color };
+    
+      labels.push(labelObj);
+    
+      const button = document.createElement('button');
+      button.classList.add('label-button');
+      button.style.backgroundColor = color;
+      button.innerText = label;
+  
+    
+      labelList.appendChild(button);
+    }
+    console.log('Labels fetched dynamically:', data.labels);
+  })
+  .catch(error => {
+    console.error('Error fetching labels:', error);
+  });
 });
 
 function initTimelines() {
@@ -365,13 +392,31 @@ function createBlock(label) {
 /********************************************************************
  * LABELS
  ********************************************************************/
-function getRandomColor() {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
+function getRandomColor(index = null) {
+  const palette = [
+    '#c81d25',    
+    '#00FFFF',    
+    '#2fff00',    
+    '#0000FF',    
+    '#ffe74c',    
+    '#FF00FF',    
+    '#FFA500',    
+    '#800080',    
+    '#008000',    
+    '#A52A2A',    
+    '#4B0082',    
+    '#FA8072',    
+    '#D2691E',    
+    '#20B2AA',     
+    '#731500',
+    '#ff206e'
+];
+  
+  if (index !== null && index >= 0 && index < palette.length) {
+    return palette[index];
   }
-  return color;
+  
+  return palette[Math.floor(Math.random() * palette.length)];
 }
 
 addLabelButton.addEventListener('click', () => {
