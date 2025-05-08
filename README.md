@@ -68,6 +68,19 @@ or download as a ZIP file.
     pip install -r requirements_linux.txt
     ```
 
+#### Mac
+
+1. Create a virtual environment
+    ```
+    python3 -m venv .venv
+    ```
+
+1. Activate the environment and install the dependencies
+    ```
+    source .venv/bin/activate
+    pip install -r requirements_mac.txt
+    ```
+
 ### Starting the Flask server
 Copy the `.env-example` file and rename the copy to `.env`. This contains the environment variable settings for the Flask server. Optionally set a secret key.
 
@@ -75,7 +88,7 @@ To start the Flask server, ensure your virtual environment is activated and exec
 ```
 flask run
 ```
-and go to [http://localhost:5000](http://localhost:5000).
+and go to [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 ## Using The Interface
 For now, only a resolution of 1920x1080 is officially supported.
